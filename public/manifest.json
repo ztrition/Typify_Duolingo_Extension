@@ -1,0 +1,37 @@
+{
+    "manifest_version": 3,
+    "name": "Hello Extensions of the world!",
+    "description": "Base Level Extension",
+    "version": "1.0",
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "permissions": [
+        "scripting",
+        "tabs",
+        "webRequest",
+        "declarativeContent"
+    ],
+    "host_permissions": [
+        "https://*/*"
+    ],
+    "content_scripts": [
+        {
+          "matches": ["*://duolingo.com/*"],
+          "js": ["contentScript.js"]
+        }
+      ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "TypingTextArea.html"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
