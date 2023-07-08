@@ -2,13 +2,14 @@ const TextAreaClassName = 'duolingo-text-box';
 const KeyboardToggleElementAttribute = '[data-test="player-toggle-keyboard"]';
 const TranslateElementAttribute = '[data-test="challenge challenge-translate"]';
 const SpeakElementXPath = '//span[text()="Click to speak"]';
+const ButtonXPath = '[data-test="player-next"]'
+
 let loadingInterval: number = 0;
 let initEventListener = false;
 
 const ShowTextArea = async function () {
 
     console.log('called');
-
     const res = await fetch(chrome.runtime.getURL("./TypingTextArea.html"));
     const html = await res.text();
     document.querySelector('div[data-test="word-bank"]')?.parentElement?.insertAdjacentHTML('beforeend', html);
@@ -17,13 +18,10 @@ const ShowTextArea = async function () {
     if(initEventListener) {
         console.log("Init");
         window.addEventListener('keydown', keyKiller, true);
+        window.addEventListener('click', checkButtonPress, true);
     }
 
-    function keyKiller(this: Window, ev: KeyboardEvent) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        console.log(ev);
-    }
+    console.log('HERE');
 
 }
 
@@ -84,4 +82,32 @@ function dontShow() {
     }
 }
 
+async function checkButtonPress(this: Element, ev: Event) {
+    let element = ev.target as Element;
+    let dataTestAttribute = element.attributes?.getNamedItem('data-test') ?? null;
+    if(dataTestAttribute !== null) {
 
+        const buttonSpan = element.querySelector('span') as Element;
+        
+        let text = buttonSpan.innerHTML.toLowerCase();
+        if(text.includes('continue')) {
+            await sleep(750);
+            
+            if(shouldShow()) {
+                await ShowTextArea();
+            }
+        }
+    }
+}
+
+function keyKiller(this: Window, ev: KeyboardEvent) {
+    console.log(ev);
+    if(ev.key === 'Enter') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        let htmlElement = this.document.querySelector(ButtonXPath) as HTMLElement;
+        htmlElement.click();
+    }
+}
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
