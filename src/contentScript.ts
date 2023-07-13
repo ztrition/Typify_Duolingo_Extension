@@ -2,46 +2,71 @@ const TextAreaClassName = 'duolingo-text-box';
 const KeyboardToggleElementAttribute = '[data-test="player-toggle-keyboard"]';
 const TranslateElementAttribute = '[data-test="challenge challenge-translate"]';
 const SpeakElementXPath = '//span[text()="Click to speak"]';
-const ButtonXPath = '[data-test="player-next"]'
+const ButtonXPath = '[data-test="player-next"]';
 
 let loadingInterval: number = 0;
-let initEventListener = false;
 
 const ShowTextArea = async function () {
 
-    console.log('called');
+    console.log("Init");
     const res = await fetch(chrome.runtime.getURL("./TypingTextArea.html"));
     const html = await res.text();
     document.querySelector('div[data-test="word-bank"]')?.parentElement?.insertAdjacentHTML('beforeend', html);
-
-
-    if(initEventListener) {
-        console.log("Init");
-        window.addEventListener('keydown', keyKiller, true);
-        window.addEventListener('click', checkButtonPress, true);
-    }
-
-    console.log('HERE');
-
 }
 
-const messageListener = (message: { initEventListener: boolean }, sender: chrome.runtime.MessageSender, sendResponse: any) => {
-    initEventListener = message.initEventListener;
-    loadingInterval = window.setInterval(waitUntilLoadingCompletes, 100);
-    chrome.runtime.onMessage.removeListener(messageListener);
-  };
+const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: any) => {
+    if(message['checkIfShouldShow']) {
+        if (shouldShow()) {
+            await ShowTextArea();
+        }
+    } else if(message['unloadSelf']) {
+        unloadSelf();
+    }
+};
 
-chrome.runtime.onMessage.addListener(messageListener);
+window.addEventListener('keydown', keyKiller, true);
+window.addEventListener('click', checkButtonPress, true);
+chrome.runtime.onMessage.addListener(messageListener)
+loadingInterval = window.setInterval(waitUntilLoadingCompletes, 100);
+
+function checkButtonPress(this: Element, ev: Event) {
+    let element = ev.target as Element;
+    let dataTestAttribute = element.attributes?.getNamedItem('data-test') ?? null;
+    if (dataTestAttribute !== null) {
+        try {
+            
+            const buttonSpan = element.querySelector('span') as Element;
+            
+            let text = buttonSpan.innerHTML.toLowerCase();
+            if (text.includes('continue')) {
+                
+                console.log("HERE");
+                if (shouldShow()) {
+                    ShowTextArea();
+                }
+            }
+        } catch (e) {
+            
+        }
+    }
+}
+
+function keyKiller(this: Window, ev: KeyboardEvent) {
+    console.log(ev);
+    if (ev.key === 'Enter') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        let htmlElement = this.document.querySelector(ButtonXPath) as HTMLElement;
+        htmlElement.click();
+    }
+}
+
 
 function waitUntilLoadingCompletes() {
     let translateElement = document.querySelector(TranslateElementAttribute);
     if (!!translateElement) {
 
         clearInterval(loadingInterval);
-
-        if (shouldShow()) {
-            ShowTextArea();
-        }
     }
 }
 
@@ -82,32 +107,11 @@ function dontShow() {
     }
 }
 
-async function checkButtonPress(this: Element, ev: Event) {
-    let element = ev.target as Element;
-    let dataTestAttribute = element.attributes?.getNamedItem('data-test') ?? null;
-    if(dataTestAttribute !== null) {
-
-        const buttonSpan = element.querySelector('span') as Element;
-        
-        let text = buttonSpan.innerHTML.toLowerCase();
-        if(text.includes('continue')) {
-            await sleep(750);
-            
-            if(shouldShow()) {
-                await ShowTextArea();
-            }
-        }
-    }
-}
-
-function keyKiller(this: Window, ev: KeyboardEvent) {
-    console.log(ev);
-    if(ev.key === 'Enter') {
-        ev.preventDefault();
-        ev.stopPropagation();
-        let htmlElement = this.document.querySelector(ButtonXPath) as HTMLElement;
-        htmlElement.click();
-    }
-}
-
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function unloadSelf() {
+    window.removeEventListener('keydown', keyKiller, true);
+    window.removeEventListener('click', checkButtonPress, true);
+    chrome.runtime.onMessage.removeListener(messageListener);
+}
+
