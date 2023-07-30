@@ -5,11 +5,10 @@ let loaded = false;
 var activeTabId = 0;
 
 chrome.tabs.onUpdated.addListener(async function (tabId, changeInfo, tab) {
-    console.log("Background");
     if (changeInfo.status == 'complete' && tab.active) {
-        let tabUrl = tab.url;
+        let tab = await chrome.tabs.query({ active: true, currentWindow: true });
         for (let url of Urls) {
-            if (tabUrl?.includes(url) && initScript) {
+            if (tab[0].url?.includes(url) && initScript) {
                 activeTabId = tabId;
 
                 if (initScript) {
@@ -19,33 +18,31 @@ chrome.tabs.onUpdated.addListener(async function (tabId, changeInfo, tab) {
                         target: { tabId: tabId },
                     });
 
-                    initScript = false;
                     loaded = true;
                 }
 
-                await chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    const activeTab = tabs[0];
-                    if (activeTab) {
-                      chrome.tabs.sendMessage(activeTab.id, { checkIfShouldShow: true });
-                    }
-                  });
+                await chrome.tabs.sendMessage(tab[0].id, { checkIfShouldShow: true });
+
                 return;
             }
         }
-        if(loaded) {
+        if (loaded) {
 
-            await chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-                const activeTab = tabs[0];
-                if (activeTab) {
-                  await chrome.tabs.sendMessage(activeTab.id, { unloadSelf: true });
-                }
-              });
+            await chrome.tabs.sendMessage(tab[0].id, { unloadSelf: true });
 
-            initScript = true;
             loaded = false;
+
         }
     }
 });
+
+chrome.runtime.onMessage.addListener(
+    function(request, sender, sendResponse) {
+        if(request['initScript']) {
+            initScript = request['initScript'];
+        }
+    }
+)
 
 
 // chrome.webRequest.onCompleted.addListener(function (details) {
